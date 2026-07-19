@@ -34,15 +34,11 @@ function scene:create(event)
         return x >= b.xMin and x <= b.xMax and y >= b.yMin and y <= b.yMax
     end
 
+    -- No setFocus: a tap's began+ended both land on this rect, so it triggers
+    -- reliably without risking a stuck global focus.
     rect:addEventListener("touch", function(e)
-        local o = e.target
-        if e.phase == "began" then
-            display.getCurrentStage():setFocus(o)
-        elseif e.phase == "ended" or e.phase == "cancelled" then
-            display.getCurrentStage():setFocus(nil)
-            if e.phase == "ended" and withinBounds(o, e.x, e.y) then
-                composer.gotoScene("scenes.game", { effect = "fade", time = 120 })
-            end
+        if e.phase == "ended" and withinBounds(e.target, e.x, e.y) then
+            composer.gotoScene("scenes.game", { effect = "fade", time = 120 })
         end
         return true
     end)
