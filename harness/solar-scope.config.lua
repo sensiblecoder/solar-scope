@@ -3,11 +3,15 @@
 -- optional and grows across phases.
 
 return {
-    -- Only boot the test runtime when we're actually testing.
+    -- Boot the SolarScope runtime (also enables the MCP hot-reload command
+    -- channel). A shipping game would gate this behind its own debug flag.
     testMode = true,
 
-    -- Which module the runner autoruns on launch.
-    testScript = "tests.generated.current_test",
+    -- Module to autorun on launch. nil (default) means "just show the game" so
+    -- the harness is immediately playable by a human; drive tests via the MCP
+    -- tools (run_solar_scope_test / rerun_solar_scope_test) instead. Set this to
+    -- a module string to autorun a test on every plain launch.
+    autorun = nil,
 
     -- Timeouts.
     timeout = 5000,        -- per-assertion wait budget

@@ -48,6 +48,30 @@ function scene:create(event)
         end
     end
 
+    -- Selection state for tap-to-swap (click one tile, then an adjacent tile).
+    local selected = nil
+
+    local function setSelected(cell)
+        if selected and selected ~= cell then
+            selected.strokeWidth = 0
+        end
+        selected = cell
+        if cell then
+            cell.strokeWidth = 5
+            cell:setStrokeColor(1, 1, 1)
+        end
+    end
+
+    local function clearSelection()
+        if selected then
+            selected.strokeWidth = 0
+            selected = nil
+        end
+    end
+
+    -- Cells support BOTH interactions so the game is playable by a human:
+    --   * drag a tile onto an adjacent tile, or
+    --   * tap a tile to select it, then tap an adjacent tile to swap.
     local function onCellTouch(evt)
         local cell = evt.target
         if evt.phase == "began" then
@@ -56,11 +80,25 @@ function scene:create(event)
         elseif (evt.phase == "ended" or evt.phase == "cancelled") and cell.isFocus then
             display.getCurrentStage():setFocus(nil)
             cell.isFocus = false
-            local tr = yToRow(evt.y)
-            local tc = xToCol(evt.x)
-            if tr >= 1 and tr <= Board.ROWS and tc >= 1 and tc <= Board.COLS
-                and Board:adjacent(cell.row, cell.col, tr, tc) then
-                Board:trySwap(cell.row, cell.col, tr, tc)
+            local tr, tc = yToRow(evt.y), xToCol(evt.x)
+            local overGrid = tr >= 1 and tr <= Board.ROWS and tc >= 1 and tc <= Board.COLS
+
+            if overGrid and (tr ~= cell.row or tc ~= cell.col) then
+                -- Dragged onto another cell.
+                if Board:adjacent(cell.row, cell.col, tr, tc) then
+                    Board:trySwap(cell.row, cell.col, tr, tc)
+                end
+                clearSelection()
+            elseif not selected then
+                -- First tap: select this tile.
+                setSelected(cell)
+            elseif selected == cell then
+                clearSelection()
+            elseif Board:adjacent(selected.row, selected.col, cell.row, cell.col) then
+                Board:trySwap(selected.row, selected.col, cell.row, cell.col)
+                clearSelection()
+            else
+                setSelected(cell)
             end
         end
         return true

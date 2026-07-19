@@ -16,22 +16,34 @@ function scene:create(event)
         x = display.contentCenterX, y = 180, fontSize = 34,
     })
 
-    -- Start button as a group (rect + label); the tap listener is on the group,
-    -- the semantic tag is on the rect. Bubbling dispatch connects them.
-    local btn = display.newGroup()
-    group:insert(btn)
-
-    local rect = display.newRoundedRect(btn, display.contentCenterX, display.contentCenterY, 260, 84, 14)
+    -- Start button: the touch listener lives on the hittable rect LEAF (not a
+    -- parent group), so real human input — which is delivered to the hit object,
+    -- not bubbled up to groups — actually triggers it. The label has no listener,
+    -- so a tap on it falls through to the rect behind.
+    local rect = display.newRoundedRect(group, display.contentCenterX, display.contentCenterY, 260, 84, 14)
     rect:setFillColor(0.20, 0.50, 0.90)
     display.newText({
-        parent = btn, text = "Start Game",
+        parent = group, text = "Start Game",
         x = display.contentCenterX, y = display.contentCenterY, fontSize = 26,
     })
 
     scope.tag(rect, { id = "main-menu.start", role = "button", name = "Start Game" })
 
-    btn:addEventListener("tap", function()
-        composer.gotoScene("scenes.game", { effect = "fade", time = 120 })
+    local function withinBounds(o, x, y)
+        local b = o.contentBounds
+        return x >= b.xMin and x <= b.xMax and y >= b.yMin and y <= b.yMax
+    end
+
+    rect:addEventListener("touch", function(e)
+        local o = e.target
+        if e.phase == "began" then
+            display.getCurrentStage():setFocus(o)
+        elseif e.phase == "ended" or e.phase == "cancelled" then
+            display.getCurrentStage():setFocus(nil)
+            if e.phase == "ended" and withinBounds(o, e.x, e.y) then
+                composer.gotoScene("scenes.game", { effect = "fade", time = 120 })
+            end
+        end
         return true
     end)
 end

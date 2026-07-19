@@ -27,7 +27,7 @@ if config.testMode then
     local scope = require("solar_scope")
     require("game.test_support")(scope) -- register fixture loaders before autorun
     scope.bootstrap({
-        autorun = config.testScript,
+        autorun = config.autorun, -- nil => playable game; MCP tools push tests
         config = config,
     })
 end
