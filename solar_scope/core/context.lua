@@ -110,6 +110,36 @@ local function dispatchChain(hitObj, event)
     end
 end
 
+-- Point-based cascade: dispatch `event` to the objects under a tap the way
+-- real Solar2D input propagates. For each leaf in the hit stack (front-to-
+-- back), walk up its parent chain; stop as soon as a listener returns true
+-- (consumed). This reaches a listener on an object BEHIND the topmost one
+-- (the common "touch handler on the background rect, label drawn on top"
+-- button) as well as one on an ancestor group (bubbling) — neither of which
+-- a single top-leaf parent-walk alone covers. Shared ancestors are visited
+-- once. Returns true if any listener consumed the event.
+local function dispatchAtPoint(stack, event)
+    local stage = display.getCurrentStage()
+    local seen = {}
+    for _, leaf in ipairs(stack) do
+        local node = leaf
+        while node and node ~= stage do
+            if not seen[node] then
+                seen[node] = true
+                event.target = leaf
+                local ok, res = pcall(node.dispatchEvent, node, event)
+                if not ok then
+                    Errors.record(res)
+                elseif res == true then
+                    return true
+                end
+            end
+            node = node.parent
+        end
+    end
+    return false
+end
+
 local function centerOf(obj)
     local b = obj.contentBounds
     if b then
@@ -129,12 +159,26 @@ local function targetInfo(obj)
     }
 end
 
--- Emit a full tap: a touch began/ended pair AND a discrete tap event, so the
--- object reacts whether it listens for "touch" or "tap".
+-- Emit a full tap at (x, y): a touch began/ended pair AND a discrete tap
+-- event, so the object reacts whether it listens for "touch" or "tap".
+-- Dispatch cascades through every object under the point (front-to-back)
+-- with parent bubbling, matching real Solar2D input — see dispatchAtPoint.
+-- `hitObj` is the object the caller resolved (a locator's element, or the
+-- top hit leaf); it's tried first so an explicitly targeted node — e.g. a
+-- tagged background rect found by findByRole — always gets a shot even if
+-- it isn't the frontmost leaf at the point.
 function Context:_emitTap(hitObj, x, y)
-    dispatchChain(hitObj, { name = "touch", phase = "began", x = x, y = y, xStart = x, yStart = y, id = TOUCH_ID })
-    dispatchChain(hitObj, { name = "touch", phase = "ended", x = x, y = y, xStart = x, yStart = y, id = TOUCH_ID })
-    dispatchChain(hitObj, { name = "tap", x = x, y = y, numTaps = 1 })
+    local stack = DisplayTree.hitStack(x, y)
+    if hitObj then
+        local present = false
+        for _, o in ipairs(stack) do
+            if o == hitObj then present = true break end
+        end
+        if not present then table.insert(stack, 1, hitObj) end
+    end
+    dispatchAtPoint(stack, { name = "touch", phase = "began", x = x, y = y, xStart = x, yStart = y, id = TOUCH_ID })
+    dispatchAtPoint(stack, { name = "touch", phase = "ended", x = x, y = y, xStart = x, yStart = y, id = TOUCH_ID })
+    dispatchAtPoint(stack, { name = "tap", x = x, y = y, numTaps = 1 })
 end
 
 function Context:_dispatchTapObject(obj)

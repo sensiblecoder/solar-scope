@@ -8,6 +8,16 @@ local function isVisibleNode(obj)
 end
 DisplayTree.isVisible = isVisibleNode
 
+-- Predicate for HIT-TESTING traversal — distinct from isVisibleNode.
+-- Solar2D hit-tests by isVisible only: an alpha == 0 object (or group)
+-- is fully transparent yet still receives touches, and Composer routinely
+-- parents a live scene under a transient alpha == 0 container. Gating hits
+-- on alpha (as isVisibleNode does, which is right for "is it painted?")
+-- would wrongly drop that whole subtree, so hit-testing uses this instead.
+local function isHittable(obj)
+    return obj.isVisible ~= false
+end
+
 -- Depth-first pre-order walk collecting objects matching predicate(obj).
 local function walk(group, predicate, out)
     local n = group.numChildren or 0
@@ -40,7 +50,7 @@ end
 local function hitTest(group, x, y)
     for i = (group.numChildren or 0), 1, -1 do
         local child = group[i]
-        if isVisibleNode(child) then
+        if isHittable(child) then
             if child.numChildren then
                 local hit = hitTest(child, x, y)
                 if hit then
@@ -59,6 +69,34 @@ end
 
 function DisplayTree.hitTest(x, y, root)
     return hitTest(root or display.getCurrentStage(), x, y)
+end
+
+-- Every visible leaf whose contentBounds contain (x, y), ordered
+-- front-to-back (topmost first) — the "hit stack" a real Solar2D touch
+-- cascades through: the frontmost object gets first shot, and if it
+-- doesn't consume the event it falls through to the object beneath.
+-- Used by tap dispatch so a listener on an object BEHIND the topmost
+-- (e.g. a button whose touch handler sits on its background rect while
+-- a label is drawn on top) still fires, matching real input.
+local function hitStack(group, x, y, out)
+    for i = (group.numChildren or 0), 1, -1 do
+        local child = group[i]
+        if isHittable(child) then
+            if child.numChildren then
+                hitStack(child, x, y, out)
+            else
+                local b = child.contentBounds
+                if b and x >= b.xMin and x <= b.xMax and y >= b.yMin and y <= b.yMax then
+                    out[#out + 1] = child
+                end
+            end
+        end
+    end
+    return out
+end
+
+function DisplayTree.hitStack(x, y, root)
+    return hitStack(root or display.getCurrentStage(), x, y, {})
 end
 
 -- Structured node for reporting / self-healing recording (Phase 3 enriches).
