@@ -90,9 +90,16 @@ into the **already-running** sim via the command channel (much faster). Both ret
 
 ### Manually (no MCP tools)
 
-1. Set `testScript` in `harness/solar-scope.config.lua`.
+1. Set `autorun = "tests.regression.<name>"` in `harness/solar-scope.config.lua`.
 2. Launch `harness/` in the simulator (`run_solar2d_project`).
 3. Read `~/Library/Application Support/Corona Simulator/harness-*/Documents/solar_scope/result.latest.json`.
+
+### Just playing it
+
+A plain launch (with `autorun = nil`, the default) lands on the menu and is fully
+playable: tap **Start Game**, then swap adjacent tiles — either drag one onto a
+neighbour, or tap a tile to select it and tap an adjacent tile. Runs of 3+ clear,
+cascade, and score.
 
 ### Tests included
 
