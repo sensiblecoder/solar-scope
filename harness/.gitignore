@@ -1,0 +1,4 @@
+# SolarScope runtime artifacts
+.solar_scope/
+# MCP-injected helper modules
+_mcp_*.lua

@@ -1,0 +1,16 @@
+settings = {
+    orientation = {
+        default = "portrait",
+        supported = { "portrait" },
+    },
+
+    window = {
+        defaultMode = "normal",
+        resizable = false,
+        defaultViewWidth = 360,
+        defaultViewHeight = 640,
+        titleText = {
+            default = "SolarScope Harness",
+        },
+    },
+}

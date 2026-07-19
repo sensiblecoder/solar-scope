@@ -1,0 +1,9 @@
+# OS / editor junk
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Harness runtime artifacts (also covered by harness/.gitignore)
+harness/.solar_scope/
+harness/_mcp_*.lua
