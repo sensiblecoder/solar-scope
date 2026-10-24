@@ -18,6 +18,7 @@ local Runner = {
     moduleName = nil,
     startTime = 0,
     finished = false,
+    entered = false,  -- beforeRun fired and afterRun is still owed
 }
 
 local function reloadModule(name)
@@ -27,6 +28,30 @@ end
 
 function Runner.setConfig(config)
     Runner.config = config or {}
+end
+
+-- Optional config hooks around every run: beforeRun() as a run starts,
+-- afterRun() once it finalizes or is stopped. The game uses them to
+-- switch on test-only settings for the run and put them back after, so
+-- a simulator left running after a test plays by its normal rules. A
+-- hook that throws is reported and skipped; it never fails the run.
+local function callHook(name)
+    local fn = Runner.config[name]
+    if type(fn) ~= "function" then return end
+    local ok, err = pcall(fn)
+    if not ok then print("SolarScope: " .. name .. " failed: " .. tostring(err)) end
+end
+
+local function enter()
+    if Runner.entered then return end
+    Runner.entered = true
+    callHook("beforeRun")
+end
+
+local function leave()
+    if not Runner.entered then return end
+    Runner.entered = false
+    callHook("afterRun")
 end
 
 -- Resolve the callable test function from whatever the module returned:
@@ -47,6 +72,7 @@ function Runner.run(moduleName, meta)
     Runner.finished = false
     Runner.startTime = system.getTimer()
     Errors.reset()
+    enter()
 
     local ok, def = pcall(reloadModule, moduleName)
     local ctx = Context.new(Runner.config)
@@ -112,6 +138,7 @@ function Runner.finalize()
 
     Reporter.write(result)
     Runner.active = nil
+    leave()
 end
 
 function Runner.onEnterFrame()
@@ -153,6 +180,7 @@ function Runner.stop()
     Runner.active = nil
     Runner.context = nil
     Runner.finished = false
+    leave()
 end
 
 Runtime:addEventListener("enterFrame", Runner.onEnterFrame)
