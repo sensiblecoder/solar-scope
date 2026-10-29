@@ -85,14 +85,37 @@ into the **already-running** sim via the command channel (much faster). Both ret
 `seq`; pass it to `get_solar_scope_result` to wait for that specific run.
 
 > These tools live in the `solar2d` MCP server
-> (`~/PycharmProjects/Solar2DMCP/tools/solar_scope.py`). **MCP servers load at start,
-> so restart Claude Code once for them to appear.**
+> ([`sensiblecoder/solar2d-mcp`](https://github.com/sensiblecoder/solar2d-mcp),
+> `tools/solar_scope.py`). MCP servers load at startup, so restart your MCP client
+> after installing or updating it.
 
 ### Manually (no MCP tools)
 
 1. Set `autorun = "tests.regression.<name>"` in `harness/solar-scope.config.lua`.
 2. Launch `harness/` in the simulator (`run_solar2d_project`).
 3. Read `~/Library/Application Support/Corona Simulator/harness-*/Documents/solar_scope/result.latest.json`.
+
+### Configuration
+
+A game configures SolarScope with a `solar-scope.config.lua` returning a table. Every
+key is optional; an empty config still gets Tier 0 features. See
+[`harness/solar-scope.config.lua`](harness/solar-scope.config.lua) for a working example.
+
+| Key | Purpose |
+|-----|---------|
+| `testMode` | Read by the game's `main.lua`: only when true does it `require("solar_scope")` and call `bootstrap`, so shipping builds stay clean. |
+| `autorun` | Read by `main.lua` and passed to `bootstrap`: test module to run on every plain launch (e.g. `"tests.regression.match_clears"`). `nil` just shows the game. |
+| `commandChannel` | Set `false` to disable the hot-reload command channel (on by default). |
+| `timeout` | Per-assertion wait budget, ms. |
+| `locatorTimeout` | Lazy-locator auto-wait, ms. |
+| `watchdog` | Global wall-clock backstop for a run, ms. |
+| `sceneAdapter` | Module path of the scene adapter, e.g. `"solar_scope.adapters.composer"`. |
+| `state` | `function() -> table` — the structured state that `expectState("a.b")` paths resolve against. |
+| `controls` | Table of named game controls, invokable and recordable via `t:control(name)`. |
+| `beforeRun` | `function()` called as each run starts — switch on test-only settings here. |
+| `afterRun` | `function()` called once the run finishes or is stopped — restore normal settings, so a simulator left running plays by its usual rules. |
+
+A `beforeRun`/`afterRun` hook that throws is logged and skipped; it never fails the run.
 
 ### Just playing it
 
@@ -128,17 +151,15 @@ cascade, and score.
 Every phase gate was exercised by launching the harness in the simulator and
 reading the result file — not by reasoning alone.
 
-### Known caveats
+### Known limitations
 
-- **Host CLI for `tools/translate.lua` is unexercised** — no standalone `lua`/`luajit`
-  on this machine. The `translate()` function itself is validated in-sim (the
-  `record_replay` test asserts the generated Lua). The embedded JSON decoder in the
-  CLI path is therefore untested end-to-end.
-- **MCP `read_solar2d_logs` was unreliable here** (truncated output); the file-on-disk
-  result transport is authoritative and is why we chose it.
-- **New MCP tools need a Claude Code restart** to load. They were validated this
-  session by invoking the handler functions directly against a live sim (the exact
-  handler code), not through a reloaded server.
+- **The host CLI for `tools/translate.lua` is untested end-to-end.** The `translate()`
+  function itself is validated in-sim (the `record_replay` test asserts the generated
+  Lua), but running it standalone under `lua`/`luajit` — including its embedded JSON
+  decoder — has not been exercised.
+- **Simulator console output can be truncated** when read through the MCP, so the
+  result file on disk is the authoritative transport; the stdout sentinel is a
+  convenience only.
 
 ### Phase 4 intent (not yet built)
 
@@ -148,3 +169,7 @@ Phase 4 extends these into a controllable virtual clock (`system.getTimer`,
 `timer.*`, `transition.*` interception), frame stepping (`pauseClock`,
 `advanceFrames`, `advanceMilliseconds`), and simulation hashing — the most invasive
 work, deliberately deferred for explicit review.
+
+## License
+
+[MIT](LICENSE)
